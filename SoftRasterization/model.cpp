@@ -17,19 +17,22 @@ Model::Model(const char* filename) : verts_(), faces_() {
         // 读取 vertices
         if (!line.compare(0, 2, "v ")) {
             iss >> trash;
-            Vec3f v;
-            for (int i = 0; i < 3; i++) iss >> v.raw[i];
+            glm::vec3 v;
+             iss >> v.x;
+             iss >> v.y;
+             iss >> v.z;
             verts_.push_back(v);
         }
         // 读取 texCoords
         if (!line.compare(0, 2, "vt")) {
             iss >> trash;
             iss >> trash;
-            Vec2f vt;
-            for (int i = 0; i < 2; i++) iss >> vt.raw[i];
+            glm::vec2 vt;
+            iss >> vt.x;
+            iss >> vt.y;
             texcoords_.push_back(vt);
         }
-        // 读取facet和vertices的对应关系
+        // 读取facet和vertices, texCoords的对应关系
         else if (!line.compare(0, 2, "f ")) {
             std::vector<int> f;
             std::vector<int> fTexCoords;
@@ -71,10 +74,10 @@ std::vector<int> Model::faceTexCoords(int idx) {
     return facesToTexCoords_[idx];
 }
 
-Vec3f Model::vert(int i) {
+glm::vec3 Model::vert(int i) {
     return verts_[i];
 }
 
-Vec2f Model::texCoords(int i){
+glm::vec2 Model::texCoords(int i){
     return texcoords_[i];
 }
