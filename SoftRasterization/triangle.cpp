@@ -86,9 +86,101 @@ void DrawSingleTriangle(glm::vec3 P1, glm::vec3 P2, glm::vec3 P3, glm::vec2 T1, 
 		}
 	}
 }
+// 屏幕空间坐标 + zbuffer + 纹理采样 + shader
+void DrawSingleTriangle(glm::vec3 P[], glm::vec2 T[], Image& img, const Image& texture, float* zbuffer, BaseShader& shader) {
+	// 不启用深度测试
+	if (zbuffer == nullptr) {
+		throw std::runtime_error("Must use depth test!\n");
+		return;
+	}
+	// 使用深度测试
+	int bbmin[2] = { (int)(std::min(std::min(P[0].x, P[1].x), P[2].x)),(int)(std::min(std::min(P[0].y, P[1].y), P[2].y)) + 1};
+	int bbmax[2] = { (int)(std::max(std::max(P[0].x, P[1].x), P[2].x)),(int)(std::max(std::max(P[0].y, P[1].y), P[2].y)) + 1};
+	//std::cout << bbmin[0] << " " << bbmin[1] << " " << bbmax[0] << " " << bbmax[1] << std::endl;
+	for (int x = bbmin[0]; x < bbmax[0]; x++) {
+		for (int y = bbmin[1]; y < bbmax[1]; y++) {
+			if (x >= img.getWidth() || y >= img.getHeight() || x < 0 || y < 0) continue;
+			if (Inside(glm::vec2(x, y), glm::vec2(P[0].x, P[0].y), glm::vec2(P[1].x, P[1].y), glm::vec2(P[2].x, P[2].y))) {
+				//std::cout << "Pass inside test at: " << x << " " << y << std::endl;
+				glm::vec3 barycentric = BarycentricCoords(glm::vec2(x, y), glm::vec2(P[0].x, P[0].y), glm::vec2(P[1].x, P[1].y), glm::vec2(P[2].x, P[2].y));
+				float depth = barycentric.x * P[0].z + barycentric.y * P[1].z + barycentric.z * P[2].z;
+				if (zbuffer[x + y * img.getWidth()] <= depth) {
+					zbuffer[x + y * img.getWidth()] = depth;
+					// 计算纹理坐标
+					ImgColor color;
+					shader.fragment(barycentric, color);
+					img.set(x, y, color);
+					//std::cout << "set color at: " << x<<" " << y << std::endl;
+				}
+			}
+		}
+	}
+}
+// 屏幕空间坐标 + zbuffer + 纹理采样 + blinnPhong shader
+void DrawSingleTriangle(glm::vec3 P[], glm::vec2 T[], Image& img, const Image& texture, float* zbuffer, BlinnPhongShader& shader)
+{
+	// 不启用深度测试
+	if (zbuffer == nullptr) {
+		throw std::runtime_error("Must use depth test!\n");
+		return;
+	}
+	// 使用深度测试
+	int bbmin[2] = { (int)(std::min(std::min(P[0].x, P[1].x), P[2].x)),(int)(std::min(std::min(P[0].y, P[1].y), P[2].y)) + 1 };
+	int bbmax[2] = { (int)(std::max(std::max(P[0].x, P[1].x), P[2].x)),(int)(std::max(std::max(P[0].y, P[1].y), P[2].y)) + 1 };
+	//std::cout << bbmin[0] << " " << bbmin[1] << " " << bbmax[0] << " " << bbmax[1] << std::endl;
+	for (int x = bbmin[0]; x < bbmax[0]; x++) {
+		for (int y = bbmin[1]; y < bbmax[1]; y++) {
+			if (x >= img.getWidth() || y >= img.getHeight() || x < 0 || y < 0) continue;
+			if (Inside(glm::vec2(x, y), glm::vec2(P[0].x, P[0].y), glm::vec2(P[1].x, P[1].y), glm::vec2(P[2].x, P[2].y))) {
+				// std::cout << "Pass inside test at: " << x << " " << y << std::endl;
+				glm::vec3 barycentric = BarycentricCoords(glm::vec2(x, y), glm::vec2(P[0].x, P[0].y), glm::vec2(P[1].x, P[1].y), glm::vec2(P[2].x, P[2].y));
+				float depth = barycentric.x * P[0].z + barycentric.y * P[1].z + barycentric.z * P[2].z;
+				if (zbuffer[x + y * img.getWidth()] <= depth) {
+					//printf("Passed depth test. \n");
+					zbuffer[x + y * img.getWidth()] = depth;
+					ImgColor color;
+					shader.fragment(barycentric, color);
+					//printf("%d\n",color.r);
+					img.set(x, y, color);
+					//std::cout << "set color at: " << x<<" " << y << std::endl;
+				}
+			}
+		}
+	}
+}
+// DepthsShader 
+void DrawSingleTriangleShadowMap(glm::vec3 P[], Image& shadowMap, DepthShader& shader) {
+	int bbmin[2] = { (int)(std::min(std::min(P[0].x, P[1].x), P[2].x)),(int)(std::min(std::min(P[0].y, P[1].y), P[2].y)) + 1 };
+	int bbmax[2] = { (int)(std::max(std::max(P[0].x, P[1].x), P[2].x)),(int)(std::max(std::max(P[0].y, P[1].y), P[2].y)) + 1 };
+	// printf("bbmin[0] : %d, bbmin[1] : %d, ,bbmax[0] : %d, ,bbmax[1] : %d \n", bbmin[0], bbmin[1], bbmax[0], bbmax[1]);
+	for (int x = bbmin[0]; x < bbmax[0]; x++) {
+		for (int y = bbmin[1]; y < bbmax[1]; y++) {
+			//printf("%d %d\n", x, y);
+			if (x >= shadowMap.getWidth() || y >= shadowMap.getHeight() || x < 0 || y < 0) continue;
+			if (Inside(glm::vec2(x, y), glm::vec2(P[0].x, P[0].y), glm::vec2(P[1].x, P[1].y), glm::vec2(P[2].x, P[2].y))) {
+				//std::cout << "Pass inside test at: " << x << " " << y << std::endl;
+				glm::vec3 barycentric = BarycentricCoords(glm::vec2(x, y), glm::vec2(P[0].x, P[0].y), glm::vec2(P[1].x, P[1].y), glm::vec2(P[2].x, P[2].y));
+				float depth = barycentric.x * P[0].z + barycentric.y * P[1].z + barycentric.z * P[2].z;
+				// printf("depth %f.\n", depth);
+				if (shader.depthBuffer[x+y*shadowMap.getWidth()] <= depth) {
+					shader.depthBuffer[x + y * shadowMap.getWidth()] = depth;
+					//printf("Depth %f.\n", shader.depthBuffer[x + y * shadowMap.getWidth()]);
+					ImgColor color;
+					shader.fragment(barycentric, color);
+					shadowMap.set(x, y, color);
+					//std::cout << "set color at: " << x<<" " << y << std::endl;
+				}
+				//else { printf("Not Pass Depth Test.\n"); }
+			}
+		}
+	}
+};
 
-
-void DrawModelRandomColor(Model& model, Image& img, float* zbuffer) {
+void DrawModelRandomColor(Model& model, Image& img) {
+	float* zbuffer = new float[img.getHeight() * img.getWidth()];
+	for (int idx = 0; idx < img.getWidth() * img.getHeight(); idx++) {
+		zbuffer[idx] = -std::numeric_limits<float>::max();
+	}
 	for (int i = 0; i < model.nfaces(); i++) {
 		std::vector<int> face = model.face(i);
 		glm::vec3 screen_coords[3];
@@ -98,8 +190,14 @@ void DrawModelRandomColor(Model& model, Image& img, float* zbuffer) {
 		}
 		DrawSingleTriangle(screen_coords[0], screen_coords[1], screen_coords[2], img, ImgColor(rand() % 255, rand() % 255, rand() % 255, 255), zbuffer);
 	}
+
+	delete[]zbuffer;
 };
-void DrawModelNormal(Model& model, Image& img, glm::vec3 lightDir, float* zbuffer) {
+void DrawModelNormal(Model& model, Image& img, glm::vec3 lightDir) {
+	float* zbuffer = new float[img.getHeight() * img.getWidth()];
+	for (int idx = 0; idx < img.getWidth() * img.getHeight(); idx++) {
+		zbuffer[idx] = -std::numeric_limits<float>::max();
+	}
 	for (int i = 0; i < model.nfaces(); i++) {
 		std::vector<int> face = model.face(i);
 		glm::vec3 screen_coords[3];
@@ -121,8 +219,13 @@ void DrawModelNormal(Model& model, Image& img, glm::vec3 lightDir, float* zbuffe
 			DrawSingleTriangle(screen_coords[0], screen_coords[1], screen_coords[2], img, ImgColor(intensity * 255, intensity * 255, intensity * 255, 255), zbuffer);
 		}
 	}
+	delete[]zbuffer;
 };
-void DrawModelTexture(Model& model, Image& img, Image&texture, float* zbuffer) {
+void DrawModelTexture(Model& model, Image& img, Image&texture) {
+	float* zbuffer = new float[img.getHeight() * img.getWidth()];
+	for (int idx = 0; idx < img.getWidth() * img.getHeight(); idx++) {
+		zbuffer[idx] = -std::numeric_limits<float>::max();
+	}
 	for (int i = 0; i < model.nfaces(); i++) {
 		std::vector<int> face = model.face(i);
 		std::vector<int> faceTexcoords = model.faceTexCoords(i);
@@ -136,8 +239,13 @@ void DrawModelTexture(Model& model, Image& img, Image&texture, float* zbuffer) {
 		}
 		DrawSingleTriangle(screen_coords[0], screen_coords[1], screen_coords[2], TexCoords[0], TexCoords[1], TexCoords[2], img, texture, zbuffer);
 	}
+	delete[]zbuffer;
 }
-void DrawModelCameraProjection(Model& model, Image& img, Image& texture, float* zbuffer, float cameraZPos) {
+void DrawModelCameraProjection(Model& model, Image& img, Image& texture, float cameraZPos) {
+	float* zbuffer = new float[img.getHeight() * img.getWidth()];
+	for (int idx = 0; idx < img.getWidth() * img.getHeight(); idx++) {
+		zbuffer[idx] = -std::numeric_limits<float>::max();
+	}
 	auto cameraProjection = [cameraZPos](glm::vec3 world_coords) ->glm::vec3 {
 		// scale x and y while keep z.
 		return glm::vec3(world_coords.x / (1 - world_coords.z / cameraZPos), world_coords.y / (1 - world_coords.z / cameraZPos), world_coords.z);
@@ -155,8 +263,13 @@ void DrawModelCameraProjection(Model& model, Image& img, Image& texture, float* 
 		}
 		DrawSingleTriangle(screen_coords[0], screen_coords[1], screen_coords[2], TexCoords[0], TexCoords[1], TexCoords[2], img, texture, zbuffer);
 	}
+	delete[]zbuffer;
 }
-void DrawModelCameraViewTransformation(Model& model, Image& img, Image& texture, float* zbuffer, Camera &camera) {
+void DrawModelCameraViewTransformation(Model& model, Image& img, Image& texture, Camera &camera) {
+	float* zbuffer = new float[img.getHeight() * img.getWidth()];
+	for (int idx = 0; idx < img.getWidth() * img.getHeight(); idx++) {
+		zbuffer[idx] = -std::numeric_limits<float>::max();
+	}
 	glm::mat4 viewMatrix = camera.getViewMatrix();
 	auto cameraProjection = [&](glm::vec3 world_coords) ->glm::vec3 {
 		// scale x and y while keep z.
@@ -177,8 +290,13 @@ void DrawModelCameraViewTransformation(Model& model, Image& img, Image& texture,
 		}
 		DrawSingleTriangle(screen_coords[0], screen_coords[1], screen_coords[2], TexCoords[0], TexCoords[1], TexCoords[2], img, texture, zbuffer);
 	}
+	delete[]zbuffer;
 }
-void DrawModelCameraViewPerspectiveTransformation(Model& model, Image& img, Image& texture, float* zbuffer, Camera& camera) {
+void DrawModelCameraViewPerspectiveTransformation(Model& model, Image& img, Image& texture, Camera& camera) {
+	float* zbuffer = new float[img.getHeight() * img.getWidth()];
+	for (int idx = 0; idx < img.getWidth() * img.getHeight(); idx++) {
+		zbuffer[idx] = -std::numeric_limits<float>::max();
+	}
 	glm::mat4 viewPerspectiveMatrix = camera.getViewPerspectiveMatrix();
 	auto cameraProjection = [&](glm::vec3 world_coords) ->glm::vec3 {
 		// scale x and y while keep z.
@@ -199,9 +317,115 @@ void DrawModelCameraViewPerspectiveTransformation(Model& model, Image& img, Imag
 		}
 		DrawSingleTriangle(screen_coords[0], screen_coords[1], screen_coords[2], TexCoords[0], TexCoords[1], TexCoords[2], img, texture, zbuffer);
 	}
+	delete[]zbuffer;
 }
+void DrawModelCameraViewPerspectiveTransformationUsingShader(Model& model, Image& img, Image& texture, Camera& camera) {
+	float* zbuffer = new float[img.getHeight() * img.getWidth()];
+	for (int idx = 0; idx < img.getWidth() * img.getHeight(); idx++) {
+		zbuffer[idx] = -std::numeric_limits<float>::max();
+	}
+	BlinnPhongShader shader;
+	shader.setMatrix(glm::mat4(1.f), camera.getViewMatrix(), camera.getPerspectiveMatrix());
+	shader.setViewPort(&img);
+	shader.setTexture(&texture);
 
+	for (int i = 0; i < model.nfaces(); i++) {
+		std::vector<int> face = model.face(i);
+		std::vector<int> faceTexcoords = model.faceTexCoords(i);
+		glm::vec3 screen_coords[3];
+		glm::vec2 TexCoords[3];
+		for (int j = 0; j < 3; j++) {
+			TexCoords[j] = model.texCoords(faceTexcoords[j]);
+			screen_coords[j] = shader.vertex(model.vert(face[j]), TexCoords[j], j);
+			//std::cout << world_coords[j].x << " " << world_coords[j].y << " " << world_coords[j].z << std::endl;
+		}
+		DrawSingleTriangle(screen_coords, TexCoords,img, texture, zbuffer, shader);
+	}
+	delete[]zbuffer;
+}
+void DrawModelCameraViewPerspectiveTransformationUsingBlinnPhongShader(Model& model, Image& img, Image& texture, Image& normalMap, Camera& camera, std::vector<pointLight> &lights)
+{
+	float* zbuffer = new float[img.getHeight() * img.getWidth()];
+	for (int idx = 0; idx < img.getWidth() * img.getHeight(); idx++) {
+		zbuffer[idx] = -std::numeric_limits<float>::max();
+	}
+	BlinnPhongShader shader;
+	shader.setMatrix(glm::mat4(1.f), camera.getViewMatrix(), camera.getPerspectiveMatrix());
+	shader.setViewPort(&img);
+	shader.setTexture(&texture);
+	shader.setNormalMap(&normalMap);
+	// set light to camera pos
+	for (pointLight & light : lights) shader.addPointLight(light);
 
+	for (int i = 0; i < model.nfaces(); i++) {
+		std::vector<int> face = model.face(i);
+		std::vector<int> faceTexcoords = model.faceTexCoords(i);
+		glm::vec3 screen_coords[3];
+		glm::vec2 TexCoords[3];
+		for (int j = 0; j < 3; j++) {
+			glm::vec3 modelVert = model.vert(face[j]);
+			TexCoords[j] = model.texCoords(faceTexcoords[j]);
+			screen_coords[j] = shader.vertex(model.vert(face[j]), TexCoords[j], j);
+		}
+		DrawSingleTriangle(screen_coords, TexCoords, img, texture, zbuffer, shader);
+	}
+	delete[]zbuffer;
+}
+void DrawModelShadowMap(Model& model, Image& shadowMap, pointLight& light)
+{
+	DepthShader shader(light, shadowMap);
+
+	for (int i = 0; i < model.nfaces(); i++) {
+		std::vector<int> face = model.face(i);
+		std::vector<int> faceTexcoords = model.faceTexCoords(i);
+		glm::vec3 screen_coords[3];
+		for (int j = 0; j < 3; j++) {
+			glm::vec3 modelVert = model.vert(face[j]);
+			screen_coords[j] = shader.vertex(model.vert(face[j]), j);
+		}
+		DrawSingleTriangleShadowMap(screen_coords, shadowMap, shader);
+	}
+}
+void DrawModelCameraViewPerspectiveTransformationUsingBlinnPhongShaderWithShadowMap(Model& model, Image& img, Image& texture, Image& normalMap, Camera& camera, std::vector<pointLight>& lights)
+{
+	float* zbuffer = new float[img.getHeight() * img.getWidth()];
+	for (int idx = 0; idx < img.getWidth() * img.getHeight(); idx++) {
+		zbuffer[idx] = -std::numeric_limits<float>::max();
+	}
+	// Shadow Path
+	// 记录所有光源的阴影贴图
+	std::vector<Image> shadowMaps;
+	// 绘制所有阴影贴图
+	int idx = 0;
+	for (pointLight &light : lights) {
+		shadowMaps.emplace_back(1600, 1600, Image::RGB);
+		DrawModelShadowMap(model, shadowMaps[idx], lights[idx]);
+		idx++;
+	}
+
+	// Shading Path
+	BlinnPhongShader shader;
+	shader.setMatrix(glm::mat4(1.f), camera.getViewMatrix(), camera.getPerspectiveMatrix());
+	shader.setViewPort(&img);
+	shader.setTexture(&texture);
+	shader.setNormalMap(&normalMap);
+	// set light to camera pos
+	for (pointLight& light : lights) shader.addPointLight(light);
+
+	for (int i = 0; i < model.nfaces(); i++) {
+		std::vector<int> face = model.face(i);
+		std::vector<int> faceTexcoords = model.faceTexCoords(i);
+		glm::vec3 screen_coords[3];
+		glm::vec2 TexCoords[3];
+		for (int j = 0; j < 3; j++) {
+			glm::vec3 modelVert = model.vert(face[j]);
+			TexCoords[j] = model.texCoords(faceTexcoords[j]);
+			screen_coords[j] = shader.vertex(model.vert(face[j]), TexCoords[j], j);
+		}
+		DrawSingleTriangle(screen_coords, TexCoords, img, texture, zbuffer, shader);
+	}
+	delete []zbuffer;
+}
 glm::vec3 BarycentricCoords(glm::vec2 P, glm::vec2 P1, glm::vec2 P2, glm::vec2 P3) {
 	glm::vec3 barycentric;
 	// P = alpha P1 + beta P2 + gama P3, alpha + beta + gamma = 1

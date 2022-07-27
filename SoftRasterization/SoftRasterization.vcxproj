@@ -146,13 +146,16 @@
     <ClCompile Include="Lines.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="model.cpp" />
+    <ClCompile Include="Shaders.cpp" />
     <ClCompile Include="triangle.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="ImagesUtils.h" />
+    <ClInclude Include="Light.h" />
     <ClInclude Include="Lines.h" />
     <ClInclude Include="model.h" />
+    <ClInclude Include="Shaders.h" />
     <ClInclude Include="triangle.h" />
     <ClInclude Include="geometry.h" />
   </ItemGroup>

@@ -62,3 +62,8 @@ glm::mat4 Camera::getPerspectiveMatrix()
 glm::mat4 Camera::getViewPerspectiveMatrix() {
 	return this->getPerspectiveMatrix() * this->getViewMatrix();
 }
+
+glm::vec3 Camera::getPos()
+{
+	return this->cameraPos;
+}
