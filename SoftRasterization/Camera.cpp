@@ -11,7 +11,7 @@ Camera::Camera(glm::vec3 cameraPos, glm::vec3 gazeDir, glm::vec3 up, float near,
 
 glm::mat4 Camera::getViewMatrix()
 {
-	std::cout << "get view matrix.\n" << std::endl;
+	// std::cout << "get view matrix.\n" << std::endl;
 	// T-View (translate the origin)
 	// !!! GLM 中的矩阵初始化和直觉相反！ 按照正常矩阵元素初始化后需要进行转置
 	//glm::mat4 translate(1, 0, 0, -cameraPos.x,
@@ -36,7 +36,7 @@ glm::mat4 Camera::getPerspectiveMatrix()
 	float t, b, l, r;
 	float fov_radians = this->fov / 180 * PI;
 	t = abs(this->near) * std::tan(fov_radians / 2);
-	std::cout << "T: " << t<< std::endl;
+	// std::cout << "T: " << t<< std::endl;
 	b = -t;
 	r = this->aspect * t;
 	l = -r;

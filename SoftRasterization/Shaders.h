@@ -64,6 +64,7 @@ public:
 	glm::mat4 model = glm::mat4(1.f);
 	glm::mat4 view = glm::mat4(1.f);
 	glm::mat4 projection = glm::mat4(1.f);
+	// 记录的是相机坐标系的坐标
 	std::vector<glm::vec3> coords;
 	Image* shadowMap;
 	float* depthBuffer;

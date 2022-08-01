@@ -27,3 +27,4 @@ void DrawModelCameraViewPerspectiveTransformationUsingBlinnPhongShaderWithShadow
 glm::vec3 BarycentricCoords(glm::vec2 P, glm::vec2 P1, glm::vec2 P2, glm::vec2 P3);
 glm::vec2 normalize(glm::vec2 v);
 glm::vec3 normalize(glm::vec3 v);
+void initializeShadowMap(Image& shadowMap);

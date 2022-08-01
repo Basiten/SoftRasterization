@@ -162,7 +162,7 @@ void DrawSingleTriangleShadowMap(glm::vec3 P[], Image& shadowMap, DepthShader& s
 				glm::vec3 barycentric = BarycentricCoords(glm::vec2(x, y), glm::vec2(P[0].x, P[0].y), glm::vec2(P[1].x, P[1].y), glm::vec2(P[2].x, P[2].y));
 				float depth = barycentric.x * P[0].z + barycentric.y * P[1].z + barycentric.z * P[2].z;
 				// printf("depth %f.\n", depth);
-				if (shader.depthBuffer[x+y*shadowMap.getWidth()] <= depth) {
+				if (shader.depthBuffer[x + y * shadowMap.getWidth()] <= depth) {
 					shader.depthBuffer[x + y * shadowMap.getWidth()] = depth;
 					//printf("Depth %f.\n", shader.depthBuffer[x + y * shadowMap.getWidth()]);
 					ImgColor color;
@@ -398,8 +398,12 @@ void DrawModelCameraViewPerspectiveTransformationUsingBlinnPhongShaderWithShadow
 	// 绘制所有阴影贴图
 	int idx = 0;
 	for (pointLight &light : lights) {
-		shadowMaps.emplace_back(1600, 1600, Image::RGB);
+		shadowMaps.emplace_back(1600, 1600, Image::RGBA);
+		initializeShadowMap(shadowMaps[idx]);
 		DrawModelShadowMap(model, shadowMaps[idx], lights[idx]);
+		shadowMaps[idx].flipVertically();
+		shadowMaps[idx].writeImage("ShadowMaps.tga");
+		shadowMaps[idx].flipVertically();
 		idx++;
 	}
 
@@ -411,6 +415,8 @@ void DrawModelCameraViewPerspectiveTransformationUsingBlinnPhongShaderWithShadow
 	shader.setNormalMap(&normalMap);
 	// set light to camera pos
 	for (pointLight& light : lights) shader.addPointLight(light);
+	// set corresponding shadow map
+	shader.attachShadowMaps(shadowMaps);
 
 	for (int i = 0; i < model.nfaces(); i++) {
 		std::vector<int> face = model.face(i);
@@ -442,3 +448,11 @@ glm::vec2 normalize(glm::vec2 v) {
 glm::vec3 normalize(glm::vec3 v){
 	return v / std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 };
+void initializeShadowMap(Image& shadowMap){
+	for (int x = 0; x < shadowMap.getWidth(); x++) {
+		for (int y = 0; y < shadowMap.getHeight(); y++) {
+			ImgColor color(-std::numeric_limits<float>::max());
+			shadowMap.set(x, y, color);
+		}
+	}
+}

@@ -27,9 +27,12 @@ struct ImgColor {
 		};
 		unsigned char raw[4];
 		unsigned int val;
+		float depth;
+		
 	};
 	int bytespp;
 	ImgColor() : val(0), bytespp(1) {}
+	ImgColor(float depth) : depth(depth), bytespp(4) {}
 	ImgColor(unsigned char R, unsigned char G, unsigned char B, unsigned char A) : b(B), g(G), r(R), a(A), bytespp(4) {
 	}
 	ImgColor(int v, int bpp) : val(v), bytespp(bpp) {

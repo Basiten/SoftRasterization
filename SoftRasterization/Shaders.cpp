@@ -58,7 +58,7 @@ bool BlinnPhongShader::fragment(glm::vec3 barycentric, ImgColor& color)
 {
 	glm::vec3 colorSum(0.f);
 	int idx = 0;
-	for (auto light : this->pointLights) {
+	for (auto &light : this->pointLights) {
 		colorSum = colorSum + calcSingleLight(barycentric, light, shadowMaps[idx]);
 		idx++;
 	}
@@ -77,14 +77,18 @@ glm::vec3 BlinnPhongShader::calcSingleLight(glm::vec3 barycentric, pointLight li
 		barycentric.x * coords[0].z + barycentric.y * coords[1].z + barycentric.z * coords[2].z);
 
 	// 是否在阴影中？
-	Camera lightCam(light.lightPos, -light.lightPos, glm::vec3(0.f, 1.f, 0.f), -1.f, -10.f, 45, 1);
+	Camera lightCam(light.lightPos, -light.lightPos, glm::vec3(0.f, 1.f, 0.f), -1.f, -10.f, 90, 1);
 	glm::vec4 camSpaceCoords = lightCam.getViewPerspectiveMatrix() * glm::vec4(worldPos,1.f);
 	camSpaceCoords = camSpaceCoords / camSpaceCoords.w;
 	// 在camScreen中的深度
-	ImgColor depth = shadowMap.get((camSpaceCoords.x + 1.) * shadowMap.getWidth() / 2., (camSpaceCoords.y + 1.) * shadowMap.getHeight() / 2.);
+	ImgColor depthColor = shadowMap.get((camSpaceCoords.x + 1.) * shadowMap.getWidth() / 2., (camSpaceCoords.y + 1.) * shadowMap.getHeight() / 2.);
 	bool inShadow = false;
-	camSpaceCoords.z < depth.r ? true : false;
-
+	float bias = 0.1f;
+	inShadow = camSpaceCoords.z + bias < depthColor.depth  ? true : false;
+	//printf("cameSpaceCoords: %f, depth Color: %f\n", camSpaceCoords.z, depthColor.depth);
+	//if (inShadow) {
+	//	printf("In shadow !\n");
+	//}
 	// texture 和 normal map、 shininess信息
 	glm::vec2 texCoordsInterpolated(barycentric.x * texCoords[0].x + barycentric.y * texCoords[1].x + barycentric.z * texCoords[2].x,
 		barycentric.x * texCoords[0].y + barycentric.y * texCoords[1].y + barycentric.z * texCoords[2].y);
@@ -186,7 +190,7 @@ DepthShader::DepthShader(pointLight& light, Image& shadowMap)
 {
 	coords.resize(3);
 	// light 位置的camera不需要特意设定up
-	this->lightViewCamera = Camera(light.lightPos, -light.lightPos, glm::vec3(0.f,1.f,0.f), -1.f, -10.f, 45, 1);
+	this->lightViewCamera = Camera(light.lightPos, -light.lightPos, glm::vec3(0.f,1.f,0.f), -1.f, -10.f, 90, 1);
 	this->setMatrix();
 	this->shadowMap = &shadowMap;
 	this->depthBuffer = new float[shadowMap.getWidth() * shadowMap.getHeight()];
@@ -194,7 +198,6 @@ DepthShader::DepthShader(pointLight& light, Image& shadowMap)
 		depthBuffer[idx] = -std::numeric_limits<float>::max();
 		//zbuffer[idx] = 100;
 	}
-	printf("Depth Shader Size: %d \n", shadowMap.getWidth() * shadowMap.getHeight());
 }
 
 void DepthShader::setMatrix()
@@ -206,20 +209,19 @@ void DepthShader::setMatrix()
 
 glm::vec3 DepthShader::vertex(glm::vec3 vert, int index)
 {
-	glm::vec4 word_coords_4d = model * glm::vec4(vert, 1.f);
-	this->coords[index] = glm::vec3(word_coords_4d.x, word_coords_4d.y, word_coords_4d.z) / word_coords_4d.w;
 	glm::vec4 coords_4d = projection * view * model * glm::vec4(vert, 1.f);
 	glm::vec3 coords = glm::vec3(coords_4d.x, coords_4d.y, coords_4d.z) / coords_4d.w;
+	this->coords[index] = coords;
 	glm::vec3 screen_coords = glm::vec3((coords.x + 1.) * shadowMap->getWidth() / 2., (coords.y + 1.) * shadowMap->getHeight() / 2., coords.z);
 	return screen_coords;
 }
 
 bool DepthShader::fragment(glm::vec3 barycentric, ImgColor& color)
 {
-	float depth = barycentric.x * coords[0].z + barycentric.y * coords[1].z + barycentric.z * coords[2].z + 3;
-	//printf("depth: %f.\n", depth);
-	color.r = depth * 255 / 3;
-	color.g = depth * 255 / 3;
-	color.b = depth * 255 / 3;
+	// 相机坐标系下的深度
+
+	float depth = barycentric.x * coords[0].z + barycentric.y * coords[1].z + barycentric.z * coords[2].z;
+	color.depth = depth;
+	// color.r = depth * 100.f;
 	return true;
 }
